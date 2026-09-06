@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import chokidar from "chokidar";
 
@@ -71,12 +72,22 @@ export const safeFetch = async (url, options = {}, timeoutMs = 20000) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  let combinedSignal = controller.signal;
+  if (options.signal) {
+    if (typeof AbortSignal.any === "function") {
+      combinedSignal = AbortSignal.any([controller.signal, options.signal]);
+    } else {
+      options.signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+  }
+
   try {
     const res = await fetch(url, {
       ...options,
-      signal: controller.signal,
+      signal: combinedSignal,
       headers: {
         "User-Agent": getRandomUserAgent(),
+        "Connection": "keep-alive",
         ...(options.headers || {})
       }
     });
@@ -84,6 +95,32 @@ export const safeFetch = async (url, options = {}, timeoutMs = 20000) => {
   } finally {
     clearTimeout(timer);
   }
+};
+
+export const pipeStream = async (url, res, options = {}, timeoutMs = 30000) => {
+  const response = await safeFetch(url, options, timeoutMs);
+  if (!response.ok) {
+    throw new Error(`Gagal membuka stream media (${response.status})`);
+  }
+
+  const contentType = response.headers.get("content-type");
+  const contentLength = response.headers.get("content-length");
+
+  if (contentType) res.setHeader("Content-Type", contentType);
+  if (contentLength) res.setHeader("Content-Length", contentLength);
+  res.setHeader("Accept-Ranges", "bytes");
+
+  const readable = Readable.fromWeb(response.body);
+  readable.pipe(res);
+
+  return new Promise((resolve, reject) => {
+    readable.on("end", resolve);
+    readable.on("error", reject);
+    res.on("close", () => {
+      readable.destroy();
+      resolve();
+    });
+  });
 };
 
 export const downloadBuffer = async (url, options = {}, timeoutMs = 30000) => {
@@ -110,9 +147,14 @@ export const getCache = (key) => {
 };
 
 export const setCache = (key, data, ttlSeconds = 60) => {
-  if (cacheStorage.size > 2000) {
-    const oldestKey = cacheStorage.keys().next().value;
-    cacheStorage.delete(oldestKey);
+  const memUsage = process.memoryUsage().rss / 1024 / 1024;
+  if (memUsage > 180 || cacheStorage.size > 1500) {
+    const purgeCount = Math.floor(cacheStorage.size * 0.3);
+    const iterator = cacheStorage.keys();
+    for (let i = 0; i < purgeCount; i++) {
+      const nextKey = iterator.next().value;
+      if (nextKey) cacheStorage.delete(nextKey);
+    }
   }
 
   cacheStorage.set(key, {
@@ -134,7 +176,14 @@ const cleanTimer = setInterval(() => {
       cacheStorage.delete(k);
     }
   }
-}, 300000);
+
+  if (process.memoryUsage().rss / 1024 / 1024 > 220) {
+    cacheStorage.clear();
+    if (global.gc) {
+      global.gc();
+    }
+  }
+}, 180000);
 
 if (cleanTimer.unref) {
   cleanTimer.unref();
