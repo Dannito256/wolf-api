@@ -38,19 +38,33 @@ export const getPluginsDir = () => {
 export const plugins = new Map();
 
 export const sendSuccess = (res, result = null, statusCode = 200) => {
-  return res.status(statusCode).json({
-    status: true,
-    creator: CREATOR,
-    result
-  });
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  return res.status(statusCode).send(
+    JSON.stringify(
+      {
+        status: true,
+        creator: CREATOR,
+        result
+      },
+      null,
+      2
+    )
+  );
 };
 
 export const sendError = (res, message = "Internal Server Error", statusCode = 500) => {
-  return res.status(statusCode).json({
-    status: false,
-    creator: CREATOR,
-    message
-  });
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  return res.status(statusCode).send(
+    JSON.stringify(
+      {
+        status: false,
+        creator: CREATOR,
+        message
+      },
+      null,
+      2
+    )
+  );
 };
 
 export const safeFetch = async (url, options = {}, timeoutMs = 20000) => {
