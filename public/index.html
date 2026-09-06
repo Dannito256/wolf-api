@@ -75,43 +75,89 @@
       background: #C05C2B;
     }
     .dynamic-island {
-      height: 44px;
-      padding: 0 18px;
       background: #161311;
       border-radius: 9999px;
-      box-shadow: 0 18px 40px -10px rgba(22, 19, 17, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.1);
-      transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
-      cursor: pointer;
+      box-shadow: 0 20px 45px -10px rgba(22, 19, 17, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      transition: width 400ms cubic-bezier(0.16, 1, 0.3, 1), height 400ms cubic-bezier(0.16, 1, 0.3, 1), border-radius 400ms cubic-bezier(0.16, 1, 0.3, 1), transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease;
     }
     .dynamic-island:hover {
-      transform: translateY(2px) scale(1.02);
-      box-shadow: 0 24px 50px -10px rgba(22, 19, 17, 0.6);
+      transform: scale(1.02);
+      box-shadow: 0 25px 55px -10px rgba(22, 19, 17, 0.65);
     }
     .dynamic-island:active {
-      transform: translateY(3px) scale(0.97);
+      transform: scale(0.98);
+    }
+    .dynamic-island.expanded {
+      border-radius: 1.75rem;
+      box-shadow: 0 30px 65px -10px rgba(22, 19, 17, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.14);
     }
     .squircle {
       border-radius: 1.5rem;
       transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .folder-box {
+    .folder-wrapper {
       border-radius: 1.5rem;
-      transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+      transition: border-color 300ms ease, box-shadow 300ms ease, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .folder-wrapper:hover {
+      box-shadow: 0 12px 30px -8px rgba(97, 88, 77, 0.08);
+    }
+    .folder-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 400ms cubic-bezier(0.16, 1, 0.3, 1), padding 350ms ease;
+    }
+    .folder-content.open {
+      grid-template-rows: 1fr;
     }
     .card-item {
       border-radius: 1.25rem;
-      transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms ease, border-color 250ms ease;
+      transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms ease, border-color 300ms ease;
+      animation: cardAppear 350ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
     }
     .card-item:hover {
       transform: translateY(-3px);
       box-shadow: 0 14px 28px -8px rgba(97, 88, 77, 0.12), 0 0 0 1px rgba(192, 92, 43, 0.35);
     }
+    @keyframes cardAppear {
+      from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
     .modal-sheet {
       transform: translateY(100%);
-      transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms ease;
+      transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms ease;
     }
     .modal-sheet.active {
       transform: translateY(0);
+    }
+    .view-transition {
+      transition: opacity 300ms cubic-bezier(0.16, 1, 0.3, 1), transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .view-enter {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+    .view-leave {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+      pointer-events: none;
+    }
+    .touch-ripple {
+      position: fixed;
+      border-radius: 9999px;
+      pointer-events: none;
+      z-index: 9999;
+      transform: scale(0.2);
+      opacity: 0.85;
+      background: radial-gradient(circle, rgba(192, 92, 43, 0.35) 0%, rgba(227, 218, 203, 0.25) 50%, transparent 75%);
+      transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), opacity 450ms ease;
     }
     .terminal-cursor {
       display: inline-block;
@@ -145,55 +191,41 @@
     .json-null { color: #8A7F71; font-style: italic; }
   </style>
 </head>
-<body class="bg-cream-100 text-cream-title min-h-screen flex flex-col font-sans antialiased selection:bg-accent-clay selection:text-white">
+<body class="bg-cream-100 text-cream-title min-h-screen flex flex-col font-sans antialiased selection:bg-accent-clay selection:text-white relative">
 
-  <div id="preloader" class="fixed inset-0 z-50 bg-cream-100 flex items-center justify-center transition-opacity duration-250">
-    <div class="flex items-center gap-2 font-mono text-xs font-semibold text-cream-muted uppercase tracking-widest">
-      <span class="w-2 h-2 rounded-full bg-accent-clay animate-pulse"></span>
-      <span>WolfApi...</span>
-    </div>
-  </div>
-
-  <div class="fixed top-4 inset-x-0 z-40 flex items-center justify-between max-w-5xl mx-auto px-6 pointer-events-none">
-    <div onclick="checkLatency()" id="dynamic-island" class="dynamic-island pointer-events-auto flex items-center gap-3 text-cream-50">
-      <img src="/media/ZEPH.jpg" alt="Logo" class="w-7 h-7 rounded-full object-cover border border-white/20 shrink-0" />
-      <div class="flex items-center gap-2 text-xs font-mono">
-        <span class="font-bold text-white tracking-tight">WolfApi</span>
-        <span class="text-white/30">•</span>
-        <span class="flex items-center gap-1.5 text-emerald-400 font-medium">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Live
-        </span>
-        <span class="text-white/30">•</span>
-        <span id="island-latency" class="text-cream-300 font-medium">...ms</span>
+  <div class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex justify-center pointer-events-none">
+    <div id="island-container" class="pointer-events-auto dynamic-island overflow-hidden flex flex-col items-center justify-center cursor-pointer">
+      <div id="island-pill" onclick="toggleDynamicIsland()" class="h-11 px-5 flex items-center justify-between gap-3 w-full text-cream-50">
+        <div class="flex items-center gap-3">
+          <img src="/media/ZEPH.jpg" alt="Logo" class="w-7 h-7 rounded-full object-cover border border-white/20 shrink-0" />
+          <span class="font-bold text-xs tracking-tight text-white font-mono">WolfApi</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-white/40">
+          <i data-lucide="chevron-down" id="island-chevron" class="w-3.5 h-3.5 transition-transform duration-300"></i>
+        </div>
       </div>
-    </div>
 
-    <div class="relative pointer-events-auto">
-      <button onclick="toggleNavMenu()" class="w-11 h-11 rounded-full bg-cream-card hover:bg-cream-200 border border-cream-border flex items-center justify-center text-cream-title shadow-sm transition-all active:scale-95">
-        <i data-lucide="more-horizontal" class="w-5 h-5"></i>
-      </button>
-
-      <div id="nav-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-cream-card border border-cream-border rounded-2xl p-2 shadow-xl space-y-1 transition-all">
-        <button onclick="switchView('home')" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-cream-title hover:bg-cream-100 flex items-center gap-2.5 transition-colors">
-          <i data-lucide="home" class="w-4 h-4 text-accent-clay"></i>
+      <div id="island-menu" class="hidden w-full px-4 pb-4 pt-1 flex-col gap-1.5 transition-all duration-300">
+        <div class="h-px bg-white/10 w-full my-1"></div>
+        <button onclick="handleIslandNav('home')" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
+          <svg class="w-4 h-4 text-accent-clayLight shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>HOME</span>
         </button>
-        <a href="https://wa.me/628895307489" target="_blank" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-cream-title hover:bg-cream-100 flex items-center gap-2.5 transition-colors">
-          <i data-lucide="message-circle" class="w-4 h-4 text-emerald-600"></i>
+        <a href="https://wa.me/628895307489" target="_blank" onclick="closeIsland()" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
+          <svg class="w-4 h-4 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.225 8.225 0 0 1 2.41 5.83c0 4.54-3.7 8.24-8.24 8.24-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.196 8.196 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24m4.52 11.66c-.19.53-.98 1.03-1.6 1.15-.41.08-.95.14-2.77-.62-2.33-.97-3.83-3.34-3.95-3.5-.11-.15-.96-1.28-.96-2.44 0-1.16.61-1.73.83-1.96.22-.24.48-.3.64-.3.16 0 .32 0 .46.01.15.01.35-.06.55.42.21.49.7 1.73.76 1.86.06.13.1.28.02.44-.08.16-.12.26-.24.4-.12.14-.25.31-.36.42-.12.12-.25.25-.11.49.14.24.63 1.04 1.35 1.68.93.83 1.71 1.09 1.95 1.21.24.12.38.1.52-.06.14-.16.61-.71.77-.96.16-.24.33-.2.55-.12.22.08 1.4.66 1.64.78.24.12.4.18.46.28.06.11.06.63-.13 1.16"/></svg>
           <span>Contact</span>
         </a>
-        <a href="https://github.com/sbyuxD/wolf-api" target="_blank" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-cream-title hover:bg-cream-100 flex items-center gap-2.5 transition-colors">
-          <i data-lucide="github" class="w-4 h-4 text-accent-stone"></i>
+        <a href="https://github.com/sbyuxD/wolf-api" target="_blank" onclick="closeIsland()" class="w-full px-3.5 py-2.5 rounded-xl text-left text-xs font-bold text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
+          <svg class="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
           <span>Source code</span>
         </a>
       </div>
     </div>
   </div>
 
-  <main class="flex-1 max-w-5xl mx-auto w-full px-6 pt-24 pb-16">
-    <div id="view-home" class="space-y-12">
-      <section class="text-center space-y-3 max-w-xl mx-auto pt-4">
+  <main class="flex-1 max-w-5xl mx-auto w-full px-6 pt-28 pb-16 relative">
+    <div id="view-home" class="view-transition view-enter space-y-12">
+      <section class="text-center space-y-3 max-w-xl mx-auto pt-2">
         <h1 class="font-serif text-5xl sm:text-6xl text-cream-title tracking-tight leading-none">
           WolfApi
         </h1>
@@ -226,6 +258,18 @@
           </div>
         </div>
 
+        <div class="p-8 sm:p-10 bg-cream-card border border-cream-border squircle flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
+          <div class="max-w-md space-y-1">
+            <h3 class="font-serif text-2xl text-cream-title">Dokumentasi API</h3>
+            <p class="text-xs text-cream-muted font-medium">Jelajahi seluruh koleksi endpoint per-kategori dan jalankan testing langsung.</p>
+          </div>
+
+          <button onclick="smoothNavigate('docs')" class="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-accent-clay hover:bg-accent-clayHover text-white font-bold text-sm tracking-wide shadow-lg shadow-accent-clay/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <span>DOCS</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="p-5 bg-cream-card border border-cream-border squircle shadow-sm">
             <div class="text-xs font-mono text-cream-muted mb-1">Server Latency</div>
@@ -239,7 +283,7 @@
 
           <div class="p-5 bg-cream-card border border-cream-border squircle shadow-sm flex items-center justify-between">
             <div>
-              <div class="text-xs font-mono text-cream-muted mb-1">Categories</div>
+              <div class="text-xs font-mono text-cream-muted mb-1">Total Kategori</div>
               <div id="stat-categories" class="text-2xl font-bold font-mono text-accent-clay">-</div>
             </div>
             <button onclick="checkLatency()" class="p-2 rounded-xl bg-cream-100 hover:bg-cream-200 text-cream-title transition-colors" title="Check Latency">
@@ -247,30 +291,18 @@
             </button>
           </div>
         </div>
-
-        <div class="p-8 sm:p-10 bg-cream-card border border-cream-border squircle flex flex-col items-center justify-center text-center space-y-4 shadow-sm">
-          <div class="max-w-md space-y-1">
-            <h3 class="font-serif text-2xl text-cream-title">Dokumentasi API</h3>
-            <p class="text-xs text-cream-muted font-medium">Buka katalog endpoint per-kategori dan mulai eksekusi langsung dari browser.</p>
-          </div>
-
-          <button onclick="switchView('docs')" class="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-accent-clay hover:bg-accent-clayHover text-white font-bold text-sm tracking-wide shadow-lg shadow-accent-clay/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-            <span>DOCS</span>
-            <i data-lucide="arrow-right" class="w-4 h-4"></i>
-          </button>
-        </div>
       </section>
     </div>
 
-    <div id="view-docs" class="hidden space-y-8">
+    <div id="view-docs" class="view-transition view-leave hidden space-y-8">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-cream-border">
         <div class="flex items-center gap-3">
-          <button onclick="switchView('home')" class="p-2 rounded-xl bg-cream-card hover:bg-cream-200 border border-cream-border text-cream-title transition-colors" title="Kembali ke Home">
+          <button onclick="smoothNavigate('home')" class="p-2 rounded-xl bg-cream-card hover:bg-cream-200 border border-cream-border text-cream-title transition-colors" title="Kembali ke Home">
             <i data-lucide="arrow-left" class="w-4 h-4"></i>
           </button>
           <div>
             <h2 class="font-serif text-3xl text-cream-title">Katalog Endpoint</h2>
-            <p class="text-xs text-cream-muted font-medium">Pilih kategori folder untuk membuka endpoint yang tersedia</p>
+            <p class="text-xs text-cream-muted font-medium">Buka folder kategori untuk melihat daftar endpoint di dalamnya</p>
           </div>
         </div>
 
@@ -282,15 +314,15 @@
 
       <div class="flex items-center gap-2 overflow-x-auto pb-2" id="category-tabs"></div>
 
-      <div id="endpoint-container" class="space-y-6">
+      <div id="endpoint-container" class="space-y-4">
         <div class="text-center py-16 text-cream-muted text-xs font-mono">
-          Loading catalog...
+          Memuat katalog...
         </div>
       </div>
     </div>
   </main>
 
-  <div id="modal-backdrop" class="fixed inset-0 bg-[#161311]/50 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-300" onclick="closeModal()"></div>
+  <div id="modal-backdrop" class="fixed inset-0 bg-[#161311]/50 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-350" onclick="closeModal()"></div>
 
   <div id="modal-sheet" class="modal-sheet fixed inset-x-0 bottom-0 z-50 max-w-2xl mx-auto max-h-[88vh] bg-cream-card border-t sm:border-x sm:rounded-t-3xl border-cream-border flex flex-col shadow-2xl">
     <div class="flex items-center justify-between px-6 py-4 border-b border-cream-border bg-cream-50 sm:rounded-t-3xl">
@@ -364,6 +396,90 @@
     let isTerminalTyping = false;
     let rawResponseText = '';
     const openFolders = new Set();
+    let isIslandExpanded = false;
+
+    window.addEventListener('pointerdown', (e) => {
+      const ripple = document.createElement('div');
+      ripple.className = 'touch-ripple';
+      const size = 36;
+      ripple.style.width = `${size}px`;
+      ripple.style.height = `${size}px`;
+      ripple.style.left = `${e.clientX - size / 2}px`;
+      ripple.style.top = `${e.clientY - size / 2}px`;
+      document.body.appendChild(ripple);
+
+      requestAnimationFrame(() => {
+        ripple.style.transform = 'scale(2.6)';
+        ripple.style.opacity = '0';
+      });
+
+      setTimeout(() => ripple.remove(), 450);
+    });
+
+    function toggleDynamicIsland() {
+      const container = document.getElementById('island-container');
+      const menu = document.getElementById('island-menu');
+      const chevron = document.getElementById('island-chevron');
+
+      isIslandExpanded = !isIslandExpanded;
+
+      if (isIslandExpanded) {
+        container.classList.add('expanded');
+        container.style.width = window.innerWidth < 640 ? '300px' : '340px';
+        menu.classList.remove('hidden');
+        menu.classList.add('flex');
+        chevron.style.transform = 'rotate(180deg)';
+      } else {
+        closeIsland();
+      }
+    }
+
+    function closeIsland() {
+      const container = document.getElementById('island-container');
+      const menu = document.getElementById('island-menu');
+      const chevron = document.getElementById('island-chevron');
+
+      isIslandExpanded = false;
+      container.classList.remove('expanded');
+      container.style.width = '';
+      menu.classList.remove('flex');
+      menu.classList.add('hidden');
+      chevron.style.transform = 'rotate(0deg)';
+    }
+
+    function handleIslandNav(view) {
+      closeIsland();
+      smoothNavigate(view);
+    }
+
+    window.addEventListener('click', (e) => {
+      const container = document.getElementById('island-container');
+      if (isIslandExpanded && !container.contains(e.target)) {
+        closeIsland();
+      }
+    });
+
+    function smoothNavigate(targetView) {
+      const homeView = document.getElementById('view-home');
+      const docsView = document.getElementById('view-docs');
+
+      const current = targetView === 'docs' ? homeView : docsView;
+      const destination = targetView === 'docs' ? docsView : homeView;
+
+      current.classList.remove('view-enter');
+      current.classList.add('view-leave');
+
+      setTimeout(() => {
+        current.classList.add('hidden');
+        destination.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        setTimeout(() => {
+          destination.classList.remove('view-leave');
+          destination.classList.add('view-enter');
+        }, 50);
+      }, 250);
+    }
 
     const notify = (icon, title) => {
       Swal.fire({
@@ -376,36 +492,6 @@
         iconColor: icon === 'success' ? '#059669' : '#C05C2B'
       });
     };
-
-    function switchView(viewName) {
-      const homeView = document.getElementById('view-home');
-      const docsView = document.getElementById('view-docs');
-      const dropdown = document.getElementById('nav-dropdown');
-      dropdown.classList.add('hidden');
-
-      if (viewName === 'docs') {
-        homeView.classList.add('hidden');
-        docsView.classList.remove('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        docsView.classList.add('hidden');
-        homeView.classList.remove('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    }
-
-    function toggleNavMenu() {
-      const dropdown = document.getElementById('nav-dropdown');
-      dropdown.classList.toggle('hidden');
-    }
-
-    window.addEventListener('click', (e) => {
-      const dropdown = document.getElementById('nav-dropdown');
-      const btn = e.target.closest('button');
-      if (!dropdown.contains(e.target) && (!btn || !btn.getAttribute('onclick')?.includes('toggleNavMenu'))) {
-        dropdown.classList.add('hidden');
-      }
-    });
 
     const formatCodeHighlight = (data) => {
       let json = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
@@ -513,8 +599,6 @@
           document.getElementById('stat-total').textContent = data.result.total || 0;
           document.getElementById('stat-categories').textContent = Object.keys(registry).length;
 
-          Object.keys(registry).forEach(cat => openFolders.add(cat));
-
           buildCategoryTabs();
           renderEndpoints();
         }
@@ -531,7 +615,7 @@
       const container = document.getElementById('category-tabs');
       container.innerHTML = `
         <button onclick="filterCategory('all')" class="px-4 py-2 rounded-xl text-xs font-bold transition-all ${currentCategory === 'all' ? 'bg-accent-clay text-white shadow-sm' : 'bg-cream-card text-cream-body hover:text-cream-title border border-cream-border'}">
-          All (Folders)
+          Semua Folder
         </button>
       `;
 
@@ -551,12 +635,26 @@
     }
 
     function toggleFolder(cat) {
-      if (openFolders.has(cat)) {
-        openFolders.delete(cat);
-      } else {
+      const content = document.getElementById(`folder-content-${cat}`);
+      const chevron = document.getElementById(`folder-chevron-${cat}`);
+      const icon = document.getElementById(`folder-icon-${cat}`);
+
+      if (!content) return;
+
+      const isNowOpen = !openFolders.has(cat);
+
+      if (isNowOpen) {
         openFolders.add(cat);
+        content.classList.add('open');
+        chevron.style.transform = 'rotate(180deg)';
+        icon.setAttribute('data-lucide', 'folder-open');
+      } else {
+        openFolders.delete(cat);
+        content.classList.remove('open');
+        chevron.style.transform = 'rotate(0deg)';
+        icon.setAttribute('data-lucide', 'folder');
       }
-      renderEndpoints(document.getElementById('search-input').value.trim().toLowerCase());
+      lucide.createIcons();
     }
 
     function renderEndpoints(searchQuery = '') {
@@ -582,34 +680,38 @@
         if (currentCategory === 'all' && !searchQuery) {
           const isOpen = openFolders.has(cat);
           const folderBox = document.createElement('div');
-          folderBox.className = 'folder-box bg-cream-card border border-cream-border overflow-hidden shadow-sm';
+          folderBox.className = 'folder-wrapper bg-cream-card border border-cream-border overflow-hidden shadow-sm';
 
           folderBox.innerHTML = `
-            <div onclick="toggleFolder('${cat}')" class="p-5 flex items-center justify-between cursor-pointer hover:bg-cream-50 transition-colors">
+            <div onclick="toggleFolder('${cat}')" class="p-5 flex items-center justify-between cursor-pointer hover:bg-cream-50 transition-colors select-none">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200 text-accent-clay flex items-center justify-center shrink-0">
-                  <i data-lucide="${isOpen ? 'folder-open' : 'folder'}" class="w-5 h-5"></i>
+                  <i data-lucide="${isOpen ? 'folder-open' : 'folder'}" id="folder-icon-${cat}" class="w-5 h-5"></i>
                 </div>
                 <div>
                   <h3 class="text-sm font-bold uppercase tracking-wider text-cream-title font-mono">${cat}</h3>
-                  <span class="text-xs text-cream-muted font-medium">${endpoints.length} endpoints tersedia</span>
+                  <span class="text-xs text-cream-muted font-medium">${endpoints.length} endpoints</span>
                 </div>
               </div>
               <div class="w-8 h-8 rounded-full bg-cream-100 flex items-center justify-center text-cream-muted">
-                <i data-lucide="${isOpen ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4"></i>
+                <i data-lucide="chevron-down" id="folder-chevron-${cat}" class="w-4 h-4 transition-transform duration-300" style="transform: ${isOpen ? 'rotate(180deg)' : 'rotate(0deg)'}"></i>
               </div>
             </div>
-            <div id="folder-grid-${cat}" class="${isOpen ? 'p-5 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-cream-border/60' : 'hidden'}"></div>
+            <div id="folder-content-${cat}" class="folder-content ${isOpen ? 'open' : ''}">
+              <div class="overflow-hidden">
+                <div class="p-5 pt-1 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-cream-border/60" id="folder-grid-${cat}"></div>
+              </div>
+            </div>
           `;
 
           container.appendChild(folderBox);
 
-          if (isOpen) {
-            const grid = document.getElementById(`folder-grid-${cat}`);
-            endpoints.forEach(ep => {
-              grid.appendChild(createEndpointCard(ep));
-            });
-          }
+          const grid = document.getElementById(`folder-grid-${cat}`);
+          endpoints.forEach((ep, i) => {
+            const cardEl = createEndpointCard(ep);
+            cardEl.style.animationDelay = `${i * 45}ms`;
+            grid.appendChild(cardEl);
+          });
         } else {
           const block = document.createElement('div');
           block.className = 'space-y-4';
@@ -626,8 +728,10 @@
           container.appendChild(block);
 
           const grid = document.getElementById(`grid-${cat}`);
-          endpoints.forEach(ep => {
-            grid.appendChild(createEndpointCard(ep));
+          endpoints.forEach((ep, i) => {
+            const cardEl = createEndpointCard(ep);
+            cardEl.style.animationDelay = `${i * 45}ms`;
+            grid.appendChild(cardEl);
           });
         }
       });
@@ -835,16 +939,13 @@
     }
 
     async function checkLatency() {
-      const topDisplay = document.getElementById('island-latency');
       const bottomDisplay = document.getElementById('bottom-latency');
       const start = performance.now();
       try {
         await fetch('/tools/ping');
         const duration = Math.round(performance.now() - start);
-        topDisplay.textContent = `${duration}ms`;
         bottomDisplay.textContent = `${duration}ms`;
       } catch {
-        topDisplay.textContent = 'Offline';
         bottomDisplay.textContent = 'Offline';
       }
     }
@@ -853,15 +954,7 @@
       lucide.createIcons();
       await fetchEndpoints();
       checkLatency();
-
-      setTimeout(() => {
-        const preloader = document.getElementById('preloader');
-        preloader.classList.add('opacity-0', 'pointer-events-none');
-        setTimeout(async () => {
-          preloader.remove();
-          await runConsoleBootSequence();
-        }, 250);
-      }, 300);
+      await runConsoleBootSequence();
 
       document.getElementById('search-input').addEventListener('input', (e) => {
         renderEndpoints(e.target.value.trim().toLowerCase());
