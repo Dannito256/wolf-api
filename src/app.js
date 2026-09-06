@@ -1,4 +1,5 @@
 import path from "node:path";
+import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import cors from "cors";
@@ -19,14 +20,38 @@ const app = express();
 app.set("json spaces", 2);
 
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 app.use((req, res, next) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
   res.setHeader("Surrogate-Control", "no-store");
+
+  const originalSend = res.send;
+  res.send = function (body) {
+    if (
+      typeof body === "string" &&
+      body.length > 1024 &&
+      req.headers["accept-encoding"] &&
+      req.headers["accept-encoding"].includes("gzip") &&
+      !res.getHeader("Content-Encoding")
+    ) {
+      res.setHeader("Content-Encoding", "gzip");
+      res.removeHeader("Content-Length");
+      zlib.gzip(Buffer.from(body), (err, zipped) => {
+        if (!err) {
+          originalSend.call(this, zipped);
+        } else {
+          originalSend.call(this, body);
+        }
+      });
+      return res;
+    }
+    return originalSend.call(this, body);
+  };
+
   next();
 });
 
@@ -110,6 +135,11 @@ app.all("/:category/:plugin(*)", async (req, res) => {
   }
 
   try {
+    const clientAbortController = new AbortController();
+    req.on("close", () => {
+      clientAbortController.abort();
+    });
+
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error("Request execution timed out")), target.timeout || 60000);
     });
@@ -118,7 +148,8 @@ app.all("/:category/:plugin(*)", async (req, res) => {
       input,
       query: req.query || {},
       body: req.body || {},
-      params: req.params || {}
+      params: req.params || {},
+      signal: clientAbortController.signal
     });
 
     const result = await Promise.race([executionPromise, timeoutPromise]);
